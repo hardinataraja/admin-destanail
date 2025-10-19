@@ -6,15 +6,7 @@
   <title>Admin Dashboard - Desta Nail's Collection</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#6a00ff">
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').then(() => {
-        console.log('✅ Service Worker registered');
-      }).catch(err => console.error('SW fail:', err));
-    });
-  }
-</script>
+
   <!-- SweetAlert2 -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <!-- html2canvas -->
@@ -584,6 +576,15 @@ document.querySelectorAll(".modal").forEach(mod=>{
 
 /* ------------- End of module ------------- */
 
+</script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').then(() => {
+        console.log('✅ Service Worker registered');
+      }).catch(err => console.error('SW fail:', err));
+    });
+  }
 </script>
 </body>
 </html>

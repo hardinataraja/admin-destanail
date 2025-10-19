@@ -1,0 +1,22 @@
+{
+  "name": "Desta Nail's Admin Panel",
+  "short_name": "DestaAdmin",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a001f",
+  "theme_color": "#6a00ff",
+  "orientation": "portrait",
+  "description": "Panel Admin Desta Nail's Collection — kelola pesanan dan produk.",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

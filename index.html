@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Dashboard - Desta Nail's Collection</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6a00ff">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').then(() => {
+        console.log('✅ Service Worker registered');
+      }).catch(err => console.error('SW fail:', err));
+    });
+  }
+</script>
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- html2canvas -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <style>
+    /* ---------- Theme ---------- */
+    :root {
+      --bg1: #1a001f;
+      --bg2: #3a0066;
+      --accent1: #6a00ff;
+      --accent2: #c800b3;
+      --card: rgba(255,255,255,0.05);
+      --muted: rgba(255,255,255,0.1);
+      --btn: #ff3fd7;
+    }
+    html,body{height:100%;margin:0;font-family:Poppins,Arial,Helvetica,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:#fff}
+    header{background:linear-gradient(135deg,var(--accent1),var(--accent2));padding:18px;text-align:center;font-size:1.3rem;font-weight:600;box-shadow:0 4px 10px rgba(0,0,0,.3)}
+    nav{display:flex;justify-content:center;background:rgba(255,255,255,0.06);padding:8px;gap:12px;flex-wrap:wrap}
+    nav button{background:none;border:1px solid #c37bff;color:#fff;border-radius:10px;padding:8px 14px;cursor:pointer;transition:all .25s}
+    nav button.active,nav button:hover{background:#c37bff;color:#120018}
+    main{padding:18px}
+
+    /* ---------- Tables & containers ---------- */
+    .top-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+    .table-container{overflow-x:auto;border-radius:10px;background:var(--card);padding:8px}
+    table{width:100%;border-collapse:collapse;min-width:900px}
+    th,td{padding:10px;border-bottom:1px solid var(--muted);text-align:left;font-size:14px;vertical-align:middle}
+    th{background:rgba(255,255,255,0.06);color:#ffbfff;font-weight:600}
+    tr:hover{background:rgba(255,255,255,0.04)}
+
+    /* images */
+    img.prod-thumb{width:56px;border-radius:6px;object-fit:cover}
+
+    /* buttons */
+    .action{background:var(--btn);border:none;padding:6px 10px;border-radius:8px;color:#fff;cursor:pointer}
+    .action.ghost{background:transparent;border:1px solid rgba(255,255,255,0.08)}
+    .danger{background:#f33}
+
+    /* modal base */
+    .modal {
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6);
+      align-items:center; justify-content:center; z-index:9999; padding:16px;
+    }
+    .card {
+      background:#2b0040;color:#fff;border-radius:12px;padding:16px; width:100%; max-width:420px;
+      box-shadow:0 8px 30px rgba(0,0,0,0.5);
+    }
+    label{display:block;margin-top:8px;font-size:13px;color:#ffd6ff}
+    input[type="text"], input[type="url"], input[type="number"], select, textarea {
+      width:100%;padding:8px;border-radius:8px;border:none;margin-top:6px;background:rgba(255,255,255,0.08);color:#fff
+    }
+
+    /* struk preview (white card) */
+    .struk-preview-wrap { display:flex; gap:10px; flex-direction:column; align-items:center; }
+    #strukPreview {
+      width:300px; background:#fff;color:#000;border-radius:8px;padding:12px;font-family:Arial,Helvetica,sans-serif;
+      box-shadow:0 6px 18px rgba(0,0,0,0.2)
+    }
+    #strukPreview h3{margin:0;text-align:center;border-bottom:1px solid #ddd;padding-bottom:8px}
+    #strukPreview table{width:100%;border-collapse:collapse;margin-top:8px}
+    #strukPreview td, #strukPreview th{font-size:13px;padding:6px;border-bottom:1px dashed #ddd;text-align:left}
+    #strukPreview .total{font-weight:700;text-align:right}
+
+    /* responsive tweaks */
+    @media (max-width:520px){
+      header{font-size:1.1rem;padding:14px}
+      .card{max-width:360px}
+      table{min-width:760px}
+      #strukPreview{width:260px}
+    }
+  </style>
+</head>
+<body>
+  <header>🧑‍💼 Admin Panel — Desta Nail's Collection</header>
+
+  <nav>
+    <button class="active" onclick="showTab('pesanan', event)">Pesanan Masuk</button>
+    <button onclick="showTab('produk', event)">Manajemen Produk</button>
+    <button onclick="showTab('laporan', event)">Laporan Penjualan</button>
+  </nav>
+
+  <main>
+    <!-- PESANAN -->
+    <section id="pesanan" class="active">
+      <h2>📦 Pesanan Masuk</h2>
+
+      <div class="top-actions">
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="action" id="deleteSelectedBtn" onclick="hapusTerpilih()">Hapus Terpilih</button>
+          <button class="action ghost" onclick="refreshOrders()">Refresh</button>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <small style="color:#ffd6ff">Pilih untuk hapus massal</small>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table id="orderTable">
+          <thead>
+            <tr>
+              <th style="width:40px"><input type="checkbox" id="selectAllOrders" /></th>
+              <th>Kode</th><th>Nama</th><th>Alamat</th><th>HP</th>
+              <th>Produk</th><th>Pembayaran</th><th>Status Bayar</th><th>Status Pesanan</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PRODUK -->
+    <section id="produk" style="display:none">
+      <h2>🛍️ Manajemen Produk</h2>
+      <form id="addProductForm" style="display:grid;gap:8px;max-width:420px">
+        <input type="text" id="pname" placeholder="Nama Produk" required />
+        <input type="number" id="pprice" placeholder="Harga (angka)" required />
+        <input type="url" id="pimg" placeholder="URL Gambar" required />
+        <div style="display:flex;gap:8px">
+          <button class="action" type="submit">Tambah Produk</button>
+          <button type="button" class="action ghost" onclick="resetProductForm()">Reset</button>
+        </div>
+      </form>
+
+      <div style="height:12px"></div>
+
+      <div class="table-container">
+        <table id="productTable">
+          <thead><tr><th>Nama</th><th>Harga</th><th>Gambar</th><th>Aksi</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- LAPORAN -->
+    <section id="laporan" style="display:none">
+      <h2>📈 Laporan Penjualan</h2>
+      <p>Total pesanan selesai: <span id="doneCount">0</span></p>
+      <p>Total pendapatan: Rp<span id="totalIncome">0</span></p>
+    </section>
+  </main>
+
+  <!-- MODAL EDIT ORDER -->
+  <div id="orderEditModal" class="modal">
+    <div class="card">
+      <h3>Ubah Status Pesanan</h3>
+      <label>Status Pesanan</label>
+      <select id="orderStatus">
+        <option value="baru">Baru</option>
+        <option value="diproses">Diproses</option>
+        <option value="pengiriman">Pengiriman</option>
+        <option value="terkirim">Terkirim</option>
+      </select>
+
+      <label>Status Pembayaran</label>
+      <select id="paymentStatus">
+        <option value="pending">Pending</option>
+        <option value="paid">Paid</option>
+      </select>
+
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="action" onclick="saveOrderEdit()">Simpan</button>
+        <button class="action ghost" onclick="closeOrderEdit()">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL STRUK PREVIEW -->
+  <div id="strukModal" class="modal">
+    <div class="card" style="max-width:800px;display:flex;flex-direction:column;gap:12px;align-items:center">
+      <h3>Preview Struk</h3>
+      <div class="struk-preview-wrap">
+        <div id="strukPreview" aria-hidden="true"></div>
+      </div>
+
+      <div style="display:flex;gap:8px;width:100%;max-width:420px">
+        <button class="action" onclick="printPreview()">🖨️ Cetak</button>
+        <button class="action" onclick="savePreviewPNG()">💾 Simpan PNG</button>
+        <button class="action ghost" onclick="closeStrukModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT PRODUK -->
+  <div id="productEditModal" class="modal">
+    <div class="card">
+      <h3>Edit Produk</h3>
+      <input type="text" id="editPName" placeholder="Nama produk" />
+      <input type="number" id="editPPrice" placeholder="Harga" />
+      <input type="url" id="editPImg" placeholder="URL Gambar" />
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="action" onclick="saveProductEdit()">Simpan</button>
+        <button class="action ghost" onclick="closeProductEdit()">Batal</button>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+/* ------------- Firebase init ------------- */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, addDoc, deleteDoc, doc,
+  onSnapshot, updateDoc, getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCo7mrvNqksgyOrHwiRU5pW0k38fQeLR4U",
+  authDomain: "desta-nails.firebaseapp.com",
+  projectId: "desta-nails",
+  storageBucket: "desta-nails.firebasestorage.app",
+  messagingSenderId: "539165179095",
+  appId: "1:539165179095:web:6cb77efd6cec10f9d08492",
+  measurementId: "G-4SRZSM2KD7"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* ------------- UI helpers & tab ------------- */
+window.showTab = (id, event) => {
+  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll("main section").forEach(s=>s.style.display="none");
+  event.target.classList.add("active");
+  document.getElementById(id).style.display = "block";
+};
+
+/* ------------- Global references ------------- */
+const orderTbody = document.querySelector("#orderTable tbody");
+const productTbody = document.querySelector("#productTable tbody");
+const selectAllOrdersCheckbox = document.getElementById("selectAllOrders");
+let orderCheckboxMap = new Map(); // id -> checkbox element
+let currentEditingOrderId = null;
+let currentEditingProductId = null;
+let lastRenderedOrdersSnapshot = null;
+
+/* ------------- Orders realtime render ------------- */
+const ordersCol = collection(db, "orders");
+
+function renderOrdersSnapshot(snap) {
+  orderTbody.innerHTML = "";
+  orderCheckboxMap.clear();
+
+  let done = 0, income = 0;
+  snap.docs.forEach(d=>{
+    const id = d.id;
+    const o = d.data();
+    // handle counts
+    if(o.status==="selesai" || o.status==="terkirim") {
+      done++;
+      const totalForOrder = (o.items||[]).reduce((a,b)=>a + (b.price||0) * (b.qty||1), 0);
+      income += totalForOrder;
+    }
+
+    // create row elements
+    const tr = document.createElement("tr");
+
+    // checkbox cell
+    const tdCheck = document.createElement("td");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.dataset.orderId = id;
+    cb.className = "order-checkbox";
+    tdCheck.appendChild(cb);
+    orderCheckboxMap.set(id, cb);
+    tr.appendChild(tdCheck);
+
+    // kode
+    const tdKode = document.createElement("td");
+    tdKode.innerText = o.kode || "-";
+    tr.appendChild(tdKode);
+
+    // nama
+    const tdNama = document.createElement("td"); tdNama.innerText = o.nama || "-"; tr.appendChild(tdNama);
+    // alamat
+    const tdAlamat = document.createElement("td"); tdAlamat.innerText = o.alamat || "-"; tr.appendChild(tdAlamat);
+    // hp
+    const tdHp = document.createElement("td"); tdHp.innerText = o.nohp || "-"; tr.appendChild(tdHp);
+
+    // produk (list)
+    const tdProduk = document.createElement("td");
+    tdProduk.innerHTML = (o.items||[]).map(i=>`${i.name} x${i.qty}`).join("<br>");
+    tr.appendChild(tdProduk);
+
+    // payment_method
+    const tdPayMethod = document.createElement("td"); tdPayMethod.innerText = o.payment_method || "-"; tr.appendChild(tdPayMethod);
+    // payment_status
+    const tdPayStatus = document.createElement("td"); tdPayStatus.innerText = o.payment_status || "-"; tr.appendChild(tdPayStatus);
+    // status
+    const tdStatus = document.createElement("td"); tdStatus.innerText = o.status || "-"; tr.appendChild(tdStatus);
+
+    // aksi
+    const tdAksi = document.createElement("td");
+    // Edit button
+    const btnEdit = document.createElement("button");
+    btnEdit.className = "action";
+    btnEdit.innerText = "Edit";
+    btnEdit.onclick = () => openOrderEdit(id);
+    tdAksi.appendChild(btnEdit);
+
+    // Cetak (only for pengiriman/terkirim)
+    if(["pengiriman","terkirim"].includes(o.status)) {
+      const btnCetak = document.createElement("button");
+      btnCetak.className = "action";
+      btnCetak.style.marginLeft = "8px";
+      btnCetak.innerText = "Cetak";
+      btnCetak.onclick = () => openStrukPreview(id);
+      tdAksi.appendChild(btnCetak);
+    }
+
+    tr.appendChild(tdAksi);
+
+    orderTbody.appendChild(tr);
+  });
+
+  document.getElementById("doneCount").innerText = done;
+  document.getElementById("totalIncome").innerText = income.toLocaleString();
+
+  // keep latest snapshot ref
+  lastRenderedOrdersSnapshot = snap;
+}
+
+// subscribe
+onSnapshot(ordersCol, renderOrdersSnapshot);
+
+/* ------------- Select all handling ------------- */
+selectAllOrdersCheckbox.addEventListener("change", ()=>{
+  const checked = selectAllOrdersCheckbox.checked;
+  for (const [id, cb] of orderCheckboxMap.entries()) {
+    cb.checked = checked;
+  }
+});
+
+/* ------------- Delete selected orders (mass) ------------- */
+window.hapusTerpilih = async () => {
+  const selected = Array.from(orderCheckboxMap.entries()).filter(([id,cb]) => cb.checked).map(([id]) => id);
+  if(selected.length === 0) {
+    Swal.fire({icon:"info",title:"Tidak ada yang dipilih",text:"Pilih pesanan terlebih dahulu."});
+    return;
+  }
+  const confirm = await Swal.fire({
+    title: `Hapus ${selected.length} pesanan?`,
+    text: "Tindakan ini akan menghapus pesanan dari database secara permanen.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Ya, hapus",
+    cancelButtonText: "Batal"
+  });
+  if(confirm.isConfirmed) {
+    try {
+      // delete sequentially (could be parallel but keep simple)
+      for(const id of selected) {
+        await deleteDoc(doc(db, "orders", id));
+      }
+      Swal.fire({icon:"success",title:"Terhapus",text:`${selected.length} pesanan dihapus.`});
+    } catch(err) {
+      console.error(err);
+      Swal.fire({icon:"error",title:"Gagal",text:"Terjadi kesalahan saat menghapus."});
+    }
+  }
+};
+
+/* ------------- Refresh button (manual) ------------- */
+window.refreshOrders = () => {
+  if(lastRenderedOrdersSnapshot) {
+    renderOrdersSnapshot(lastRenderedOrdersSnapshot); // just rerender UI (onSnapshot auto updates anyway)
+    Swal.fire({icon:"success",title:"Selesai",timer:900,showConfirmButton:false});
+  } else {
+    Swal.fire({icon:"info",title:"Belum ada data"});
+  }
+};
+
+/* ------------- Order Edit modal logic ------------- */
+const orderEditModal = document.getElementById("orderEditModal");
+window.openOrderEdit = async (orderId) => {
+  currentEditingOrderId = orderId;
+  // fetch latest data
+  const snap = await getDoc(doc(db,"orders",orderId));
+  if(!snap.exists()){
+    Swal.fire({icon:"error",title:"Data pesanan tidak ditemukan"});
+    return;
+  }
+  const o = snap.data();
+  document.getElementById("orderStatus").value = o.status || "baru";
+  document.getElementById("paymentStatus").value = o.payment_status || "pending";
+  orderEditModal.style.display = "flex";
+};
+window.closeOrderEdit = () => { orderEditModal.style.display = "none"; currentEditingOrderId = null; };
+window.saveOrderEdit = async () => {
+  if(!currentEditingOrderId) return;
+  const newStatus = document.getElementById("orderStatus").value;
+  const newPay = document.getElementById("paymentStatus").value;
+  try {
+    await updateDoc(doc(db,"orders",currentEditingOrderId), { status: newStatus, payment_status: newPay });
+    Swal.fire({icon:"success",title:"Terupdate",timer:900,showConfirmButton:false});
+    closeOrderEdit();
+  } catch(err) {
+    console.error(err);
+    Swal.fire({icon:"error",title:"Gagal update"});
+  }
+};
+
+/* ------------- Struk Preview modal logic ------------- */
+const strukModal = document.getElementById("strukModal");
+const strukPreviewElem = document.getElementById("strukPreview");
+let lastPreviewOrder = null;
+
+window.openStrukPreview = async (orderId) => {
+  // fetch order
+  const snap = await getDoc(doc(db,"orders",orderId));
+  if(!snap.exists()) return Swal.fire({icon:"error",title:"Data tidak ditemukan"});
+  const o = snap.data();
+  lastPreviewOrder = { id: orderId, data: o };
+
+  // build HTML content for preview (rapi)
+  const itemsHTML = (o.items||[]).map(i=>`<tr><td>${escapeHtml(i.name)}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">Rp${(i.price||0).toLocaleString()}</td></tr>`).join("");
+  const total = (o.items||[]).reduce((a,b)=>a + (b.price||0)*(b.qty||1), 0);
+
+  strukPreviewElem.innerHTML = `
+    <h3>Desta Nail's Collection</h3>
+    <p><strong>Kode:</strong> ${escapeHtml(o.kode || orderId)}</p>
+    <p><strong>Nama:</strong> ${escapeHtml(o.nama || "-")}</p>
+    <p><strong>Alamat:</strong> ${escapeHtml(o.alamat || "-")}</p>
+    <p><strong>No HP:</strong> ${escapeHtml(o.nohp || "-")}</p>
+    <table>
+      <thead><tr><th style="width:55%">Produk</th><th style="width:15%">Qty</th><th style="width:30%;text-align:right">Harga</th></tr></thead>
+      <tbody>${itemsHTML}</tbody>
+      <tfoot><tr><td colspan="2" class="total" style="text-align:right">Total</td><td style="text-align:right">Rp${total.toLocaleString()}</td></tr></tfoot>
+    </table>
+    <p><strong>Status:</strong> ${escapeHtml(o.status || "-")}</p>
+    <p><strong>Payment:</strong> ${escapeHtml(o.payment_status || "-")}</p>
+    <p style="text-align:center;margin-top:8px">Terima kasih 💅</p>
+  `;
+
+  // show modal
+  strukModal.style.display = "flex";
+};
+
+// helper for print: open new window with image/png and call print
+window.printPreview = async () => {
+  if(!lastPreviewOrder) return;
+  // generate canvas from preview node
+  const canvas = await html2canvas(strukPreviewElem, {scale:2});
+  const dataUrl = canvas.toDataURL("image/png");
+  // open print window
+  const w = window.open("", "_blank");
+  w.document.write(`<img src="${dataUrl}" style="max-width:100%"/>`);
+  w.document.close();
+  w.focus();
+  w.print();
+};
+
+// helper to save PNG (user-initiated)
+window.savePreviewPNG = async () => {
+  if(!lastPreviewOrder) return;
+  const canvas = await html2canvas(strukPreviewElem, {scale:2});
+  const link = document.createElement("a");
+  link.href = canvas.toDataURL("image/png");
+  link.download = `${(lastPreviewOrder.data.kode||lastPreviewOrder.id)}.png`;
+  link.click();
+};
+
+window.closeStrukModal = () => {
+  strukModal.style.display = "none";
+  strukPreviewElem.innerHTML = "";
+  lastPreviewOrder = null;
+};
+
+/* ------------- Products realtime & CRUD ------------- */
+const productsCol = collection(db,"products");
+
+onSnapshot(productsCol, (snap) => {
+  productTbody.innerHTML = "";
+  snap.docs.forEach(d => {
+    const p = d.data();
+    const tr = document.createElement("tr");
+    // name
+    const tdName = document.createElement("td"); tdName.innerText = p.name; tr.appendChild(tdName);
+    // price
+    const tdPrice = document.createElement("td"); tdPrice.innerText = `Rp${(p.price||0).toLocaleString()}`; tr.appendChild(tdPrice);
+    // image
+    const tdImg = document.createElement("td");
+    const img = document.createElement("img"); img.src = p.img; img.className = "prod-thumb";
+    tdImg.appendChild(img); tr.appendChild(tdImg);
+    // aksi
+    const tdAksi = document.createElement("td");
+    const btnEdit = document.createElement("button"); btnEdit.className="action"; btnEdit.innerText="Edit";
+    btnEdit.onclick = () => openProductEdit(d.id, p);
+    const btnHapus = document.createElement("button"); btnHapus.className="action ghost"; btnHapus.style.marginLeft="8px"; btnHapus.innerText="Hapus";
+    btnHapus.onclick = async () => {
+      const res = await Swal.fire({title:"Hapus produk?",text:p.name,icon:"warning",showCancelButton:true,confirmButtonText:"Hapus"});
+      if(res.isConfirmed){
+        await deleteDoc(doc(db,"products",d.id));
+        Swal.fire({icon:"success",title:"Terhapus",timer:900,showConfirmButton:false});
+      }
+    };
+    tdAksi.appendChild(btnEdit); tdAksi.appendChild(btnHapus);
+    tr.appendChild(tdAksi);
+
+    productTbody.appendChild(tr);
+  });
+});
+
+/* Add product form */
+document.getElementById("addProductForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = document.getElementById("pname").value.trim();
+  const price = parseInt(document.getElementById("pprice").value || "0", 10);
+  const img = document.getElementById("pimg").value.trim();
+  if(!name || !img) return Swal.fire({icon:"error",title:"Form tidak lengkap"});
+  try {
+    await addDoc(collection(db,"products"), { name, price, img });
+    e.target.reset();
+    Swal.fire({icon:"success",title:"Ditambahkan",timer:900,showConfirmButton:false});
+  } catch(err) {
+    console.error(err);
+    Swal.fire({icon:"error",title:"Gagal menambah"});
+  }
+});
+
+window.resetProductForm = () => {
+  document.getElementById("addProductForm").reset();
+};
+
+/* ------------- Product edit modal ------------- */
+const productEditModal = document.getElementById("productEditModal");
+window.openProductEdit = (id, productData) => {
+  currentEditingProductId = id;
+  document.getElementById("editPName").value = productData.name || "";
+  document.getElementById("editPPrice").value = productData.price || 0;
+  document.getElementById("editPImg").value = productData.img || "";
+  productEditModal.style.display = "flex";
+};
+window.closeProductEdit = () => { productEditModal.style.display = "none"; currentEditingProductId = null; };
+window.saveProductEdit = async () => {
+  if(!currentEditingProductId) return;
+  const name = document.getElementById("editPName").value.trim();
+  const price = parseInt(document.getElementById("editPPrice").value || "0", 10);
+  const img = document.getElementById("editPImg").value.trim();
+  if(!name || !img) return Swal.fire({icon:"error",title:"Form tidak lengkap"});
+  try {
+    await updateDoc(doc(db,"products",currentEditingProductId), { name, price, img });
+    Swal.fire({icon:"success",title:"Tersimpan",timer:900,showConfirmButton:false});
+    closeProductEdit();
+  } catch(err) {
+    console.error(err);
+    Swal.fire({icon:"error",title:"Gagal simpan"});
+  }
+};
+
+/* ------------- Utility helpers ------------- */
+function escapeHtml(s) {
+  if(!s) return "";
+  return String(s).replace(/[&<>"']/g, function(m){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]; });
+}
+
+/* close modals when click outside card */
+document.querySelectorAll(".modal").forEach(mod=>{
+  mod.addEventListener("click", (e)=>{
+    if(e.target === mod) {
+      mod.style.display = "none";
+      // reset current editing refs
+      if(mod === orderEditModal) currentEditingOrderId = null;
+      if(mod === productEditModal) currentEditingProductId = null;
+      if(mod === strukModal) { lastPreviewOrder = null; strukPreviewElem.innerHTML = ""; }
+    }
+  });
+});
+
+/* ------------- End of module ------------- */
+
+</script>
+</body>
+</html>

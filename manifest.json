@@ -1,7 +1,7 @@
 {
   "name": "Desta Nail's Admin Panel",
   "short_name": "DestaAdmin",
-  "start_url": "./index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#1a001f",
   "theme_color": "#6a00ff",
